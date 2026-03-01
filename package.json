@@ -1,0 +1,36 @@
+{
+    "name": "chrome-storage-quota",
+    "version": "0.1.0",
+    "description": "Storage quota monitoring for Chrome extensions — usage tracking, quota alerts, cleanup strategies, and storage analytics for MV3.",
+    "author": "Zovo <hello@zovo.one>",
+    "license": "MIT",
+    "keywords": [
+        "chrome-extension",
+        "storage",
+        "quota",
+        "monitoring",
+        "cleanup",
+        "manifest-v3",
+        "browser-extension",
+        "analytics"
+    ],
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/theluckystrike/chrome-storage-quota.git"
+    },
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "files": [
+        "dist",
+        "README.md",
+        "LICENSE"
+    ],
+    "scripts": {
+        "build": "tsc",
+        "prepublishOnly": "npm run build"
+    },
+    "devDependencies": {
+        "@types/chrome": "^0.0.260",
+        "typescript": "^5.3.3"
+    }
+}
