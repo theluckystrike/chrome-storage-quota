@@ -1,122 +1,102 @@
 # chrome-storage-quota
 
-[![npm version](https://img.shields.io/npm/v/chrome-storage-quota)](https://npmjs.com/package/chrome-storage-quota)
-[![License](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue.svg)](https://www.typescriptlang.org/)
-[![Chrome Web Extension](https://img.shields.io/badge/Chrome-Web%20Extension-orange.svg)](https://developer.chrome.com/docs/extensions/)
-[![CI Status](https://github.com/theluckystrike/chrome-storage-quota/actions/workflows/ci.yml/badge.svg)](https://github.com/theluckystrike/chrome-storage-quota/actions)
-[![Discord](https://img.shields.io/badge/Discord-Zovo-blueviolet.svg?logo=discord)](https://discord.gg/zovo)
-[![Website](https://img.shields.io/badge/Website-zovo.one-blue)](https://zovo.one)
-[![GitHub Stars](https://img.shields.io/github/stars/theluckystrike/chrome-storage-quota?style=social)](https://github.com/theluckystrike/chrome-storage-quota)
+Storage quota monitoring for Chrome extensions. Track usage, set threshold alerts, inspect per-key breakdowns, and clean up stale entries. Built for Manifest V3.
 
-> Manage storage quotas in Chrome extensions.
+INSTALL
 
-**chrome-storage-quota** provides utilities to check, monitor, and manage storage usage with quota warnings and cleanup utilities. Part of the Zovo Chrome extension utilities.
-
-Part of the [Zovo](https://zovo.one) developer tools family.
-
-## Overview
-
-chrome-storage-quota provides utilities to check, monitor, and manage storage usage with quota warnings and cleanup utilities.
-
-## Features
-
-- ✅ **Quota Checking** - Check storage quota usage
-- ✅ **Usage Monitoring** - Real-time usage monitoring
-- ✅ **Warning Events** - Get notified at thresholds
-- ✅ **Cleanup Utilities** - Built-in cleanup helpers
-- ✅ **TypeScript Support** - Full type definitions included
-
-## Installation
-
-```bash
+```
 npm install chrome-storage-quota
 ```
 
-## Usage
+USAGE
 
-### Check Quota
-
-```javascript
+```typescript
 import { StorageQuota } from 'chrome-storage-quota';
-
-const quota = await StorageQuota.check('sync');
-console.log(quota.used, quota.quota);
 ```
 
-### Monitor Usage
+The entire API is static methods on the StorageQuota class. No instantiation needed.
 
-```javascript
-const monitor = new StorageQuota('local');
+CHECK USAGE
 
-monitor.on('warning', (data) => {
-  console.log('80% used:', data.used);
-});
+```typescript
+const localBytes = await StorageQuota.getLocalUsage();
+const syncBytes  = await StorageQuota.getSyncUsage();
+const percent    = await StorageQuota.getUsagePercent('local');
+
+console.log(StorageQuota.formatBytes(localBytes));
+// "3.2 MB"
 ```
 
-## API
+getLocalUsage() returns total bytes consumed in chrome.storage.local.
+getSyncUsage() returns total bytes consumed in chrome.storage.sync.
+getUsagePercent(area) returns an integer 0-100 representing how full the given area is relative to its quota (10 MB for local, 100 KB for sync).
 
-### Methods
+PER-KEY BREAKDOWN
 
-- `check(type)` - Check quota usage
-- `getUsage(type)` - Get usage details
-
-## Browser Support
-
-- Chrome 90+
-
-## Contributing
-
-Contributions are welcome! Please follow these steps:
-
-1. **Fork** the repository
-2. **Create** a feature branch: `git checkout -b feature/quota-improvement`
-3. **Make** your changes
-4. **Test** your changes: `npm test`
-5. **Commit** your changes: `git commit -m 'Add new feature'`
-6. **Push** to the branch: `git push origin feature/quota-improvement`
-7. **Submit** a Pull Request
-
-### Development Setup
-
-```bash
-# Clone the repository
-git clone https://github.com/theluckystrike/chrome-storage-quota.git
-cd chrome-storage-quota
-
-# Install dependencies
-npm install
-
-# Run tests
-npm test
-
-# Build
-npm run build
+```typescript
+const breakdown = await StorageQuota.getBreakdown('local');
+// [{ key: 'history', bytes: 48210 }, { key: 'prefs', bytes: 1024 }, ...]
 ```
 
-## Built by Zovo
+getBreakdown(area) returns every key in the storage area with its byte size, sorted largest first.
 
-Part of the [Zovo](https://zovo.one) developer tools family — privacy-first Chrome extensions built by developers, for developers.
+FIND LARGEST ITEMS
 
-## See Also
+```typescript
+const top3 = await StorageQuota.getLargest(3, 'sync');
+```
 
-### Related Zovo Repositories
+getLargest(count, area) is a convenience wrapper that returns the top N entries from getBreakdown.
 
-- [zovo-extension-template](https://github.com/theluckystrike/zovo-extension-template) - Boilerplate for building privacy-first Chrome extensions
-- [zovo-types-webext](https://github.com/theluckystrike/zovo-types-webext) - Comprehensive TypeScript type definitions for browser extensions
-- [chrome-storage-plus](https://github.com/theluckystrike/chrome-storage-plus) - Type-safe storage wrapper
+THRESHOLD ALERTS
 
-### Zovo Chrome Extensions
+```typescript
+const timer = StorageQuota.watchUsage(80, (percent) => {
+  console.log(`Storage is at ${percent}%`);
+}, 30000);
 
-- [Zovo Tab Manager](https://chrome.google.com/webstore/detail/zovo-tab-manager) - Manage tabs efficiently
-- [Zovo Focus](https://chrome.google.com/webstore/detail/zovo-focus) - Block distractions
+// Stop watching later
+clearInterval(timer);
+```
 
-Visit [zovo.one](https://zovo.one) for more information.
+watchUsage(thresholdPercent, callback, intervalMs) polls local storage usage on an interval (default 60 seconds). When the percentage meets or exceeds the threshold, the callback fires with the current percent.
 
-## License
+CLEANUP BY AGE
 
-MIT - [Zovo](https://zovo.one)
+```typescript
+const removed = await StorageQuota.cleanOlderThan(30, 'createdAt');
+console.log(`Removed ${removed} stale entries`);
+```
+
+cleanOlderThan(days, timestampKey) scans chrome.storage.local for objects where the given timestamp field is older than the specified number of days and removes them. Returns the count of deleted keys.
+
+FORMAT BYTES
+
+```typescript
+StorageQuota.formatBytes(1048576);  // "1.0 MB"
+StorageQuota.formatBytes(2048);     // "2.0 KB"
+StorageQuota.formatBytes(512);      // "512 B"
+```
+
+API REFERENCE
+
+StorageQuota.getLocalUsage() - Returns bytes used in local storage.
+StorageQuota.getSyncUsage() - Returns bytes used in sync storage.
+StorageQuota.getUsagePercent(area) - Returns usage as an integer percentage. Area is "local" or "sync", defaults to "local".
+StorageQuota.getBreakdown(area) - Returns array of { key, bytes } sorted by size descending.
+StorageQuota.getLargest(count, area) - Returns the top N items from getBreakdown. Count defaults to 5.
+StorageQuota.watchUsage(threshold, callback, intervalMs) - Polls usage and fires callback when threshold is met. Returns a timer handle for clearInterval.
+StorageQuota.cleanOlderThan(days, timestampKey) - Removes local storage entries older than the given age. Timestamp key defaults to "createdAt".
+StorageQuota.formatBytes(bytes) - Converts a byte count to a human-readable string (B, KB, or MB).
+
+BROWSER SUPPORT
+
+Chrome 90+ with Manifest V3.
+
+LICENSE
+
+MIT. See LICENSE file.
 
 ---
 
-Built by [Zovo](https://zovo.one)
+Built at zovo.one
